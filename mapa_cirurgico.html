@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa de Procedimentos - Representação Médica</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            overflow: hidden;
+        }
+
+        .container {
+            padding: 20px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-content {
+            flex: 1;
+        }
+
+        .header h1 {
+            font-size: 3em;
+            margin-bottom: 5px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .datetime {
+            font-size: 1.5em;
+            opacity: 0.9;
+        }
+
+        .btn-adicionar {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.3em;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+        }
+
+        .btn-adicionar:hover {
+            background: #059669;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.6);
+        }
+
+        .procedimentos-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 20px;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .procedimento-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 20px;
+            color: #333;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+            transition: transform 0.3s ease;
+            position: relative;
+        }
+
+        .procedimento-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .procedimento-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #667eea;
+        }
+
+        .hospital-nome {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #667eea;
+            flex: 1;
+        }
+
+        .status-badge {
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 1.1em;
+            text-transform: uppercase;
+        }
+
+        .status-andamento {
+            background: #ef4444;
+            color: white;
+            animation: pulse 2s infinite;
+        }
+
+        .status-agendado {
+            background: #10b981;
+            color: white;
+        }
+
+        .status-preparacao {
+            background: #f59e0b;
+            color: white;
+        }
+
+        .status-concluido {
+            background: #6b7280;
+            color: white;
+        }
+
+        .procedimento-info {
+            margin-top: 15px;
+        }
+
+        .info-row {
+            display: flex;
+            margin-bottom: 12px;
+            font-size: 1.2em;
+        }
+
+        .info-label {
+            font-weight: bold;
+            color: #667eea;
+            min-width: 140px;
+        }
+
+        .info-value {
+            flex: 1;
+            color: #333;
+        }
+
+        .horario-destaque {
+            background: #fef3c7;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+            border-left: 4px solid #f59e0b;
+        }
+
+        .empty-message {
+            text-align: center;
+            color: #999;
+            font-style: italic;
+            margin-top: 10px;
+        }
+
+        .acoes-procedimento {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 2px solid #e5e7eb;
+        }
+
+        .btn-acao {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1em;
+        }
+
+        .btn-editar {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-editar:hover {
+            background: #2563eb;
+        }
+
+        .btn-finalizar {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-finalizar:hover {
+            background: #059669;
+        }
+
+        .btn-cancelar {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-cancelar:hover {
+            background: #dc2626;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.ativo {
+            display: flex;
+        }
+
+        .modal-conteudo {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            color: #333;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #667eea;
+        }
+
+        .modal-header h2 {
+            color: #667eea;
+            font-size: 2em;
+        }
+
+        .btn-fechar {
+            background: #ef4444;
+            color: white;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            font-size: 1.5em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-fechar:hover {
+            background: #dc2626;
+            transform: rotate(90deg);
+        }
+
+        .form-grupo {
+            margin-bottom: 20px;
+        }
+
+        .form-grupo label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #667eea;
+            font-size: 1.1em;
+        }
+
+        .form-grupo input,
+        .form-grupo select,
+        .form-grupo textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 1em;
+            font-family: inherit;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-grupo input:focus,
+        .form-grupo select:focus,
+        .form-grupo textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-grupo textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .btn-salvar {
+            width: 100%;
+            padding: 15px;
+            background: #10b981;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.3em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+
+        .btn-salvar:hover {
+            background: #059669;
+            transform: translateY(-2px);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .procedimentos-grid::-webkit-scrollbar,
+        .modal-conteudo::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        .procedimentos-grid::-webkit-scrollbar-track,
+        .modal-conteudo::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+
+        .procedimentos-grid::-webkit-scrollbar-thumb,
+        .modal-conteudo::-webkit-scrollbar-thumb {
+            background: rgba(102, 126, 234, 0.5);
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-content">
+                <h1>🏥 MAPA DE PROCEDIMENTOS</h1>
+                <div class="datetime" id="datetime"></div>
+            </div>
+            <button class="btn-adicionar" onclick="abrirModal()">
+                ➕ Registrar Procedimento
+            </button>
+        </div>
+        
+        <div class="procedimentos-grid" id="procedimentosGrid"></div>
+    </div>
+
+    <!-- Modal de Registro/Edição -->
+    <div class="modal" id="modal">
+        <div class="modal-conteudo">
+            <div class="modal-header">
+                <h2 id="modalTitulo">Registrar Procedimento</h2>
+                <button class="btn-fechar" onclick="fecharModal()">✕</button>
+            </div>
+            
+            <form id="formProcedimento" onsubmit="salvarProcedimento(event)">
+                <input type="hidden" id="procedimentoIndex">
+                
+                <div class="form-grupo">
+                    <label for="hospital">Nome do Hospital *</label>
+                    <select id="hospital" required>
+                        <option value="">Selecione o hospital</option>
+                        <option value="Hospital Santa Casa Campo Grande">Hospital Santa Casa Campo Grande</option>
+                        <option value="Hospital Unimed de Campo Grande">Hospital Unimed de Campo Grande</option>
+                        <option value="Hospital Proncor">Hospital Proncor</option>
+                        <option value="Hospital Penfigo">Hospital Penfigo</option>
+                        <option value="Hospital Geral El Kadri">Hospital Geral El Kadri</option>
+                        <option value="outro">Outro (digitar)</option>
+                    </select>
+                </div>
+                
+                <div class="form-grupo" id="outroHospitalGrupo" style="display: none;">
+                    <label for="outroHospital">Nome do Outro Hospital *</label>
+                    <input type="text" id="outroHospital" placeholder="Digite o nome do hospital">
+                </div>
+
+                <div class="form-grupo">
+                    <label for="status">Status *</label>
+                    <select id="status" required>
+                        <option value="agendado">Agendado</option>
+                        <option value="preparacao">Em Preparação</option>
+                        <option value="andamento">Em Andamento</option>
+                        <option value="concluido">Concluído</option>
+                    </select>
+                </div>
+
+                <div class="form-grupo">
+                    <label for="paciente">Nome do Médico *</label>
+                    <input type="text" id="paciente" required placeholder="Dr(a). Nome do Médico">
+                </div>
+
+                <div class="form-grupo">
+                    <label for="convenio">Convênio *</label>
+                    <select id="convenio" required>
+                        <option value="">Selecione o convênio</option>
+                        <option value="SUS">SUS</option>
+                        <option value="Unimed">Unimed</option>
+                        <option value="Bradesco Saúde">Bradesco Saúde</option>
+                        <option value="Amil">Amil</option>
+                        <option value="SulAmérica">SulAmérica</option>
+                        <option value="NotreDame Intermédica">NotreDame Intermédica</option>
+                        <option value="Cassems">Cassems</option>
+                        <option value="Particular">Particular</option>
+                        <option value="outro">Outro (digitar)</option>
+                    </select>
+                </div>
+                
+                <div class="form-grupo" id="outroConvenioGrupo" style="display: none;">
+                    <label for="outroConvenio">Nome do Outro Convênio *</label>
+                    <input type="text" id="outroConvenio" placeholder="Digite o nome do convênio">
+                </div>
+
+                <div class="form-grupo">
+                    <label for="procedimento">Procedimento *</label>
+                    <textarea id="procedimento" required placeholder="Descreva o procedimento médico"></textarea>
+                </div>
+
+                <div class="form-grupo">
+                    <label for="especialista">Vendedor Responsável *</label>
+                    <select id="especialista" required>
+                        <option value="">Selecione o vendedor</option>
+                        <option value="Tiago da Silva Siqueira">Tiago da Silva Siqueira</option>
+                        <option value="Marcos Gonçalves da Silva">Marcos Gonçalves da Silva</option>
+                        <option value="Marcella Fernandes Ricci">Marcella Fernandes Ricci</option>
+                    </select>
+                </div>
+
+                <div class="form-grupo">
+                    <label for="especialidade">Linha de Produtos *</label>
+                    <input type="text" id="especialidade" required placeholder="Ex: Cardiologia, Urologia, Endovascular, etc.">
+                </div>
+
+                <div class="form-grupo">
+                    <label for="equipe">Equipe de Apoio</label>
+                    <input type="text" id="equipe" placeholder="Ex: Equipe A, Enfermeiros, Anestesista">
+                </div>
+
+                <div class="form-grupo">
+                    <label for="dataAgendamento">Data do Procedimento *</label>
+                    <input type="date" id="dataAgendamento" required>
+                </div>
+
+                <div class="form-grupo">
+                    <label for="inicio">Horário de Início *</label>
+                    <input type="time" id="inicio" required>
+                </div>
+
+                <div class="form-grupo">
+                    <label for="previsaoTermino">Previsão de Término *</label>
+                    <input type="time" id="previsaoTermino" required>
+                </div>
+
+                <div class="form-grupo">
+                    <label for="observacoes">Observações</label>
+                    <textarea id="observacoes" placeholder="Informações adicionais sobre o procedimento"></textarea>
+                </div>
+
+                <button type="submit" class="btn-salvar">💾 Salvar Informações</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let procedimentos = [
+            { 
+                id: 1,
+                hospital: 'Hospital Santa Casa Campo Grande',
+                status: 'andamento',
+                paciente: 'Dr. Carlos Eduardo Mendes',
+                convenio: 'Unimed',
+                procedimento: 'Revascularização Miocárdica',
+                especialista: 'Tiago da Silva Siqueira',
+                especialidade: 'Cirurgia Cardíaca',
+                inicio: '08:00',
+                previsaoTermino: '12:00',
+                dataAgendamento: '2024-12-17',
+                equipe: 'Equipe Cardio A',
+                observacoes: 'Procedimento complexo, requer instrumentação completa'
+            },
+            { 
+                id: 2,
+                hospital: 'Hospital Unimed de Campo Grande',
+                status: 'preparacao',
+                paciente: 'Dra. Ana Paula Fernandes',
+                convenio: 'SUS',
+                procedimento: 'Angioplastia Coronária',
+                especialista: 'Marcos Gonçalves da Silva',
+                especialidade: 'Cardiologia Intervencionista',
+                inicio: '10:00',
+                previsaoTermino: '13:00',
+                dataAgendamento: '2024-12-17',
+                equipe: 'Equipe Hemodinâmica',
+                observacoes: 'Verificar disponibilidade de stents coronários'
+            },
+            { 
+                id: 3,
+                hospital: 'Hospital Proncor',
+                status: 'andamento',
+                paciente: 'Dr. Roberto Santos Lima',
+                convenio: 'Particular',
+                procedimento: 'Biópsia Renal Percutânea',
+                especialista: 'Marcella Fernandes Ricci',
+                especialidade: 'Nefrologia',
+                inicio: '09:30',
+                previsaoTermino: '11:30',
+                dataAgendamento: '2024-12-17',
+                equipe: 'Equipe Nefro',
+                observacoes: 'Utilizar equipamento de ultrassom portátil e agulhas de biópsia'
+            }
+        ];
+
+        let proximoId = 4;
+
+        function atualizarDataHora() {
+            const agora = new Date();
+            const opcoes = { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            };
+            document.getElementById('datetime').textContent = 
+                agora.toLocaleDateString('pt-BR', opcoes);
+        }
+
+        function renderizarProcedimentos() {
+            const grid = document.getElementById('procedimentosGrid');
+            grid.innerHTML = '';
+
+            procedimentos.forEach((proc, index) => {
+                const card = document.createElement('div');
+                card.className = 'procedimento-card';
+
+                const statusClass = `status-${proc.status}`;
+                const statusTexto = {
+                    'andamento': 'Em Andamento',
+                    'agendado': 'Agendado',
+                    'preparacao': 'Em Preparação',
+                    'concluido': 'Concluído'
+                }[proc.status];
+
+                const dataFormatada = new Date(proc.dataAgendamento + 'T00:00:00').toLocaleDateString('pt-BR', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric'
+                });
+
+                card.innerHTML = `
+                    <div class="procedimento-header">
+                        <div class="hospital-nome">🏥 ${proc.hospital}</div>
+                        <div class="status-badge ${statusClass}">${statusTexto}</div>
+                    </div>
+                    <div class="procedimento-info">
+                        <div class="info-row">
+                            <span class="info-label">Médico:</span>
+                            <span class="info-value">${proc.paciente}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Convênio:</span>
+                            <span class="info-value">${proc.convenio}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Procedimento:</span>
+                            <span class="info-value">${proc.procedimento}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Vendedor:</span>
+                            <span class="info-value">${proc.especialista}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Linha:</span>
+                            <span class="info-value">${proc.especialidade}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Equipe:</span>
+                            <span class="info-value">${proc.equipe || '-'}</span>
+                        </div>
+                        <div class="horario-destaque">
+                            <div class="info-row">
+                                <span class="info-label">Data:</span>
+                                <span class="info-value">${dataFormatada}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Início:</span>
+                                <span class="info-value">${proc.inicio}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Previsão:</span>
+                                <span class="info-value">${proc.previsaoTermino}</span>
+                            </div>
+                        </div>
+                        ${proc.observacoes ? `
+                        <div class="info-row" style="margin-top: 10px;">
+                            <span class="info-label">Observações:</span>
+                            <span class="info-value" style="font-style: italic;">${proc.observacoes}</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                    <div class="acoes-procedimento">
+                        <button class="btn-acao btn-editar" onclick="editarProcedimento(${index})">
+                            ✏️ Editar
+                        </button>
+                        ${proc.status !== 'concluido' ? `
+                        <button class="btn-acao btn-finalizar" onclick="finalizarProcedimento(${index})">
+                            ✅ Concluir
+                        </button>
+                        ` : ''}
+                        <button class="btn-acao btn-cancelar" onclick="excluirProcedimento(${index})">
+                            🗑️ Excluir
+                        </button>
+                    </div>
+                `;
+
+                grid.appendChild(card);
+            });
+        }
+
+        function abrirModal() {
+            document.getElementById('modal').classList.add('ativo');
+            document.getElementById('modalTitulo').textContent = 'Registrar Procedimento';
+            document.getElementById('formProcedimento').reset();
+            document.getElementById('procedimentoIndex').value = '';
+            
+            // Define data padrão como hoje
+            const hoje = new Date().toISOString().split('T')[0];
+            document.getElementById('dataAgendamento').value = hoje;
+        }
+
+        function fecharModal() {
+            document.getElementById('modal').classList.remove('ativo');
+        }
+
+        function editarProcedimento(index) {
+            const proc = procedimentos[index];
+            document.getElementById('modalTitulo').textContent = 'Editar Procedimento';
+            document.getElementById('procedimentoIndex').value = index;
+            
+            // Verificar se o hospital está na lista
+            const hospitalSelect = document.getElementById('hospital');
+            const opcaoExiste = Array.from(hospitalSelect.options).some(opt => opt.value === proc.hospital);
+            
+            if (opcaoExiste) {
+                hospitalSelect.value = proc.hospital;
+                document.getElementById('outroHospitalGrupo').style.display = 'none';
+            } else {
+                hospitalSelect.value = 'outro';
+                document.getElementById('outroHospitalGrupo').style.display = 'block';
+                document.getElementById('outroHospital').value = proc.hospital;
+            }
+            
+            // Verificar se o convênio está na lista
+            const convenioSelect = document.getElementById('convenio');
+            const convenioExiste = Array.from(convenioSelect.options).some(opt => opt.value === proc.convenio);
+            
+            if (convenioExiste) {
+                convenioSelect.value = proc.convenio;
+                document.getElementById('outroConvenioGrupo').style.display = 'none';
+            } else {
+                convenioSelect.value = 'outro';
+                document.getElementById('outroConvenioGrupo').style.display = 'block';
+                document.getElementById('outroConvenio').value = proc.convenio;
+            }
+            
+            document.getElementById('status').value = proc.status;
+            document.getElementById('paciente').value = proc.paciente;
+            document.getElementById('procedimento').value = proc.procedimento;
+            document.getElementById('especialista').value = proc.especialista;
+            document.getElementById('especialidade').value = proc.especialidade;
+            document.getElementById('equipe').value = proc.equipe || '';
+            document.getElementById('dataAgendamento').value = proc.dataAgendamento;
+            document.getElementById('inicio').value = proc.inicio;
+            document.getElementById('previsaoTermino').value = proc.previsaoTermino;
+            document.getElementById('observacoes').value = proc.observacoes || '';
+            
+            document.getElementById('modal').classList.add('ativo');
+        }
+
+        function salvarProcedimento(event) {
+            event.preventDefault();
+            
+            const indexStr = document.getElementById('procedimentoIndex').value;
+            
+            let hospitalSelecionado = document.getElementById('hospital').value;
+            if (hospitalSelecionado === 'outro') {
+                hospitalSelecionado = document.getElementById('outroHospital').value;
+                if (!hospitalSelecionado) {
+                    alert('Por favor, digite o nome do hospital!');
+                    return;
+                }
+            }
+            
+            let convenioSelecionado = document.getElementById('convenio').value;
+            if (convenioSelecionado === 'outro') {
+                convenioSelecionado = document.getElementById('outroConvenio').value;
+                if (!convenioSelecionado) {
+                    alert('Por favor, digite o nome do convênio!');
+                    return;
+                }
+            }
+            
+            const dados = {
+                hospital: hospitalSelecionado,
+                status: document.getElementById('status').value,
+                paciente: document.getElementById('paciente').value,
+                convenio: convenioSelecionado,
+                procedimento: document.getElementById('procedimento').value,
+                especialista: document.getElementById('especialista').value,
+                especialidade: document.getElementById('especialidade').value,
+                equipe: document.getElementById('equipe').value,
+                dataAgendamento: document.getElementById('dataAgendamento').value,
+                inicio: document.getElementById('inicio').value,
+                previsaoTermino: document.getElementById('previsaoTermino').value,
+                observacoes: document.getElementById('observacoes').value
+            };
+
+            if (indexStr === '') {
+                dados.id = proximoId++;
+                procedimentos.push(dados);
+            } else {
+                dados.id = procedimentos[parseInt(indexStr)].id;
+                procedimentos[parseInt(indexStr)] = dados;
+            }
+
+            renderizarProcedimentos();
+            fecharModal();
+            alert('Procedimento salvo com sucesso! ✅');
+        }
+
+        function finalizarProcedimento(index) {
+            if (confirm('Deseja marcar este procedimento como concluído?')) {
+                procedimentos[index].status = 'concluido';
+                renderizarProcedimentos();
+                alert('Procedimento concluído! ✅');
+            }
+        }
+
+        function excluirProcedimento(index) {
+            if (confirm('Tem certeza que deseja excluir este procedimento?')) {
+                procedimentos.splice(index, 1);
+                renderizarProcedimentos();
+                alert('Procedimento excluído! 🗑️');
+            }
+        }
+
+        // Inicialização
+        atualizarDataHora();
+        renderizarProcedimentos();
+        setInterval(atualizarDataHora, 1000);
+
+        // Controlar exibição do campo "Outro Hospital"
+        document.getElementById('hospital').addEventListener('change', function() {
+            const outroGrupo = document.getElementById('outroHospitalGrupo');
+            const outroInput = document.getElementById('outroHospital');
+            if (this.value === 'outro') {
+                outroGrupo.style.display = 'block';
+                outroInput.required = true;
+            } else {
+                outroGrupo.style.display = 'none';
+                outroInput.required = false;
+                outroInput.value = '';
+            }
+        });
+
+        // Fechar modal ao clicar fora
+        document.getElementById('modal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                fecharModal();
+            }
+        });
+    </script>
+</body>
+</html>
